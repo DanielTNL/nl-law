@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8"><title>NL Law Bot</title>
+<style>
+  body{font:16px system-ui, sans-serif;max-width:760px;margin:24px auto;padding:0 12px}
+  #chat{border:1px solid #ddd;border-radius:12px;padding:12px;height:60vh;overflow:auto}
+  .bubble{padding:8px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap}
+  .me{background:#eef}
+  .bot{background:#f7f7f7}
+  form{display:flex;gap:8px;margin-top:12px}
+  input{flex:1;padding:10px;border:1px solid #ccc;border-radius:10px}
+  button{padding:10px 14px;border:0;border-radius:10px;background:#222;color:#fff}
+  small{color:#666}
+</style>
+</head>
+<body>
+<h1>NL Law Bot</h1>
+<div id="chat"></div>
+<form onsubmit="send(event)">
+  <input id="q" placeholder="Stel je vraag…">
+  <button>Vraag</button>
+</form>
+<small>Tip: gebruik /live voor actuele documenten. Voorbeeld: “/live: dienstreizen defensie”.</small>
+<script>
+const backend = location.origin; // same origin (served by FastAPI)
+const chat = document.getElementById('chat');
+function add(text, who){ const div=document.createElement('div');div.className='bubble '+who;div.textContent=text;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;}
+async function send(e){e.preventDefault(); const q=document.getElementById('q').value.trim(); if(!q) return;
+  add(q,'me'); document.getElementById('q').value='';
+  try {
+    // quick convention: if user types "/live: query", call live PUC + OB; else use /ask (RAG)
+    if(q.startsWith('/live:')){
+      const qq=q.replace('/live:','').trim();
+      const r1 = await fetch(`${backend}/live/puc?q=`+encodeURIComponent(qq)).then(r=>r.json());
+      const r2 = await fetch(`${backend}/live/ob?q=`+encodeURIComponent(qq)).then(r=>r.json());
+      add(formatLiveAnswer(qq,r1,r2),'bot');
+    } else {
+      const r = await fetch(`${backend}/ask`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,top_k:5})}).then(r=>r.json());
+      add(r.answer || JSON.stringify(r),'bot');
+    }
+  } catch(err){ add('Fout: '+err,'bot'); }
+}
+function formatLiveAnswer(q, puc, ob){
+  let out = `Actuele resultaten voor: "${q}"\n\nMP-bundels:\n`;
+  if(puc.items?.length){ out += puc.items.slice(0,5).map((i,ix)=>` ${ix+1}. ${i.titel} — ${i.datum || ''}\n    ${i.url}`).join('\n'); }
+  else out += '   niets gevonden\n';
+  out += `\nOfficiële bekendmakingen:\n`;
+  if(ob.items?.length){ out += ob.items.slice(0,5).map((i,ix)=>` ${ix+1}. ${i.title} — ${i.date || ''}\n    ${i.link}`).join('\n'); }
+  else out += '   niets gevonden';
+  return out;
+}
+</script>
+</body></html>
