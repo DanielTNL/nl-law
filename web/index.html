@@ -1,1 +1,37 @@
-
+<!doctype html><html><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>NL Law Bot</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:820px;margin:40px auto;padding:0 16px}
+.card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
+button{padding:10px 16px;border-radius:8px;border:1px solid #999;cursor:pointer}
+input,textarea{width:100%;padding:12px;border-radius:8px;border:1px solid #ccc}
+.small{color:#555;font-size:0.9em}
+</style>
+</head><body>
+<h1>NL Law Bot</h1>
+<p class="small">Stel je vraag over NL wetgeving (BWB). Antwoorden komen met bronnen.</p>
+<div class="card">
+  <textarea id="q" rows="4" placeholder="Bijv. Wanneer is een veiligheidsonderzoek vereist bij Defensie?"></textarea>
+  <div style="margin-top:8px">
+    <button onclick="ask()">Vraag</button>
+  </div>
+</div>
+<div id="out"></div>
+<script>
+const BACKEND = (location.hash && location.hash.slice(1)) || localStorage.getItem("BACKEND") || "http://localhost:8080";
+async function ask(){
+  const q = document.getElementById('q').value.trim();
+  if(!q) return;
+  const res = await fetch(BACKEND + "/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
+  const data = await res.json();
+  const out = document.getElementById('out');
+  out.innerHTML = "";
+  const card = document.createElement('div'); card.className="card";
+  card.innerHTML = `<div>${data.answer.replace(/\n/g,"<br>")}</div>`;
+  out.appendChild(card);
+}
+</script>
+<p class="small">Tip: zet je backend URL in de adresbalk na een #, bv: <code>…/index.html#https://jouw-backend.fly.dev</code></p>
+</body></html>
