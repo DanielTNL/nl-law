@@ -7,10 +7,12 @@ from app.settings import QDRANT_URL, QDRANT_API_KEY, OPENAI_API_KEY, COLLECTION,
 client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
 def ensure_collection():
-    client.recreate_collection(
-        COLLECTION,
-        vectors_config=models.VectorParams(size=3072, distance=models.Distance.COSINE)
-    )
+    from qdrant_client.http import models
+    if not client.collection_exists(COLLECTION):
+        client.create_collection(
+            COLLECTION,
+            vectors_config=models.VectorParams(size=3072, distance=models.Distance.COSINE)
+        )
 
 async def embed_texts(texts: List[str]) -> List[List[float]]:
     headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
