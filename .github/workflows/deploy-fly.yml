@@ -1,1 +1,25 @@
-
+name: Deploy to Fly
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: |
+          echo "Creating .env from secrets"
+          cat > .env <<EOF
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+QDRANT_URL=${{ secrets.QDRANT_URL }}
+QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+COLLECTION=bwb_articles
+EMBED_MODEL=text-embedding-3-large
+GEN_MODEL=gpt-4o
+PORT=8080
+EOF
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
