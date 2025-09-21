@@ -1,1 +1,28 @@
-
+name: Manual ingest
+on: { workflow_dispatch: {} }
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r requirements.txt
+      - name: Restore env
+        run: |
+          cat > .env <<EOF
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+QDRANT_URL=${{ secrets.QDRANT_URL }}
+QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+COLLECTION=bwb_articles
+EMBED_MODEL=text-embedding-3-large
+GEN_MODEL=gpt-4o
+EOF
+      - name: Fetch BWB (manual step)
+        run: |
+          echo ">>> Place your BWB XML into data/bwb locally & commit via LFS, or mount in Codespaces."
+          ls -la data/bwb || true
+      - name: Ingest to JSONL
+        run: python -m app.ingest_bwb
+      - name: Index into Qdrant
+        run: python -m app.retriever
