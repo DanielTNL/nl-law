@@ -1,3 +1,4 @@
+cat > app/retriever.py <<'PY'
 import json, httpx, asyncio
 from typing import List, Dict
 from uuid import uuid4
@@ -55,7 +56,7 @@ async def index_jsonl(path="data/out/bwb_articles.jsonl"):
             vecs = await embed_texts([c["text"] for c in chunk])
             points = []
             for c, v in zip(chunk, vecs):
-                # Use a UUID as the Qdrant point id; keep your original id in payload
+                # ✅ Use a UUID as the Qdrant point id; keep your original id in payload
                 points.append(
                     models.PointStruct(
                         id=str(uuid4()),
@@ -93,3 +94,4 @@ async def semantic_search(query: str, top_k=5) -> List[Dict]:
 
 if __name__ == "__main__":
     asyncio.run(index_jsonl())
+PY
