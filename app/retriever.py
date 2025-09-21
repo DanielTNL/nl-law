@@ -1,4 +1,3 @@
-cat > app/retriever.py <<'PY'
 import json, httpx, asyncio
 from typing import List, Dict
 from uuid import uuid4
@@ -17,14 +16,10 @@ from app.settings import (
 client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
 def ensure_collection():
-    # Create once if it doesn't exist (no deprecation warnings)
     if not client.collection_exists(COLLECTION):
         client.create_collection(
             COLLECTION,
-            vectors_config=models.VectorParams(
-                size=3072,  # text-embedding-3-large
-                distance=models.Distance.COSINE
-            ),
+            vectors_config=models.VectorParams(size=3072, distance=models.Distance.COSINE)
         )
 
 async def embed_texts(texts: List[str]) -> List[List[float]]:
@@ -33,21 +28,19 @@ async def embed_texts(texts: List[str]) -> List[List[float]]:
         r = await s.post(
             "https://api.openai.com/v1/embeddings",
             headers=headers,
-            json={"model": EMBED_MODEL, "input": texts},
+            json={"model": EMBED_MODEL, "input": texts}
         )
         r.raise_for_status()
         data = r.json()["data"]
         return [d["embedding"] for d in data]
 
 def batch(it, n=64):
-    buf = []
+    buf=[]
     for x in it:
         buf.append(x)
-        if len(buf) == n:
-            yield buf
-            buf = []
-    if buf:
-        yield buf
+        if len(buf)==n:
+            yield buf; buf=[]
+    if buf: yield buf
 
 async def index_jsonl(path="data/out/bwb_articles.jsonl"):
     ensure_collection()
@@ -56,31 +49,22 @@ async def index_jsonl(path="data/out/bwb_articles.jsonl"):
             vecs = await embed_texts([c["text"] for c in chunk])
             points = []
             for c, v in zip(chunk, vecs):
-                # ✅ Use a UUID as the Qdrant point id; keep your original id in payload
-                points.append(
-                    models.PointStruct(
-                        id=str(uuid4()),
-                        vector=v,
-                        payload={**c, "doc_id": c.get("id")},
-                    )
-                )
+                points.append(models.PointStruct(
+                    id=str(uuid4()),
+                    vector=v,
+                    payload={**c, "doc_id": c.get("id")}
+                ))
             client.upsert(COLLECTION, points=points)
     print("Index built.")
 
 async def semantic_search(query: str, top_k=5) -> List[Dict]:
     vec = (await embed_texts([query]))[0]
-    res = client.search(
-        COLLECTION,
-        query_vector=vec,
-        limit=top_k,
-        with_payload=True,
-        score_threshold=0.2,
-    )
-    out = []
+    res = client.search(COLLECTION, query_vector=vec, limit=top_k, with_payload=True, score_threshold=0.2)
+    out=[]
     for r in res:
         p = r.payload
         out.append({
-            "id": p.get("doc_id"),         # your original id back out
+            "id": p.get("doc_id"),
             "text": p["text"],
             "titel": p["titel"],
             "bwbr": p["bwbr"],
@@ -88,10 +72,9 @@ async def semantic_search(query: str, top_k=5) -> List[Dict]:
             "lid": p["lid"],
             "versie_van": p["versie_van"],
             "bron_url": p["bron_url"],
-            "score": r.score,
+            "score": r.score
         })
     return out
 
 if __name__ == "__main__":
     asyncio.run(index_jsonl())
-PY
