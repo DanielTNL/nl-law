@@ -16,7 +16,9 @@ app = FastAPI(title="NL Law Bot")
 frontend_dir = pathlib.Path(__file__).parent.parent / "frontend"
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
-@app.get("/")
+@app.get("/health")
+async def health():
+    return {"ok": True}
 async def root():
     # Return index.html when someone opens the base URL
     return FileResponse(frontend_dir / "index.html")

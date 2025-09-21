@@ -1,53 +1,90 @@
 <!doctype html>
-<html><head>
-<meta charset="utf-8"><title>NL Law Bot</title>
-<style>
-  body{font:16px system-ui, sans-serif;max-width:760px;margin:24px auto;padding:0 12px}
-  #chat{border:1px solid #ddd;border-radius:12px;padding:12px;height:60vh;overflow:auto}
-  .bubble{padding:8px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap}
-  .me{background:#eef}
-  .bot{background:#f7f7f7}
-  form{display:flex;gap:8px;margin-top:12px}
-  input{flex:1;padding:10px;border:1px solid #ccc;border-radius:10px}
-  button{padding:10px 14px;border:0;border-radius:10px;background:#222;color:#fff}
-  small{color:#666}
-</style>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NL Law Bot</title>
+  <style>
+    :root{--bg:#0b0c10;--card:#111317;--muted:#8a8f98;--ring:#2a2f39;--accent:#4f8cff}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:#e9ebef;font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif}
+    .shell{max-width:900px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    header .dot{width:10px;height:10px;border-radius:50%;background:radial-gradient(closest-side,#59f,#2dd,#0cf);box-shadow:0 0 8px #59f}
+    h1{font-size:18px;margin:0}
+    .card{background:var(--card);border:1px solid var(--ring);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:60vh}
+    .scroll{padding:16px;overflow:auto;flex:1}
+    .row{display:flex;gap:10px;margin:10px 0}
+    .me .bubble{background:#1a2331} .bot .bubble{background:#151920;border:1px solid #222831}
+    .bubble{padding:12px 14px;border-radius:12px;max-width:80%}
+    .me{justify-content:flex-end} .me .bubble{border-top-right-radius:4px}
+    .bot{justify-content:flex-start} .bot .bubble{border-top-left-radius:4px}
+    .meta{color:var(--muted);font-size:12px;margin-top:6px}
+    .sources a{color:#b4c9ff;text-decoration:none} .sources a:hover{text-decoration:underline}
+    .input{display:flex;gap:10px;border-top:1px solid var(--ring);padding:12px;background:#0e1015}
+    input[type=text]{flex:1;border:1px solid #262b33;background:#0b0e14;color:#e9ebef;border-radius:10px;padding:12px}
+    button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:600}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    .small{color:var(--muted);font-size:12px;margin-top:8px}
+  </style>
 </head>
 <body>
-<h1>NL Law Bot</h1>
-<div id="chat"></div>
-<form onsubmit="send(event)">
-  <input id="q" placeholder="Stel je vraag…">
-  <button>Vraag</button>
-</form>
-<small>Tip: gebruik /live voor actuele documenten. Voorbeeld: “/live: dienstreizen defensie”.</small>
-<script>
-const backend = location.origin; // same origin (served by FastAPI)
-const chat = document.getElementById('chat');
-function add(text, who){ const div=document.createElement('div');div.className='bubble '+who;div.textContent=text;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;}
-async function send(e){e.preventDefault(); const q=document.getElementById('q').value.trim(); if(!q) return;
-  add(q,'me'); document.getElementById('q').value='';
-  try {
-    // quick convention: if user types "/live: query", call live PUC + OB; else use /ask (RAG)
-    if(q.startsWith('/live:')){
-      const qq=q.replace('/live:','').trim();
-      const r1 = await fetch(`${backend}/live/puc?q=`+encodeURIComponent(qq)).then(r=>r.json());
-      const r2 = await fetch(`${backend}/live/ob?q=`+encodeURIComponent(qq)).then(r=>r.json());
-      add(formatLiveAnswer(qq,r1,r2),'bot');
-    } else {
-      const r = await fetch(`${backend}/ask`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,top_k:5})}).then(r=>r.json());
-      add(r.answer || JSON.stringify(r),'bot');
+  <div class="shell">
+    <header><div class="dot"></div><h1>NL Law Bot</h1></header>
+
+    <div class="card">
+      <div id="chat" class="scroll"></div>
+      <form class="input" onsubmit="send(event)">
+        <input id="q" type="text" placeholder="Stel je vraag…  (tip: probeer ‘Wanneer is een veiligheidsonderzoek vereist?’)" autocomplete="off" />
+        <button id="btn" type="submit">Verstuur</button>
+      </form>
+    </div>
+    <div class="small">Antwoorden komen uit je eigen index (/ask). We tonen ook bronnen onder elk antwoord.</div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const qEl  = document.getElementById('q');
+    const btn  = document.getElementById('btn');
+
+    function addBubble(text, who='bot', sources=null){
+      const row = document.createElement('div'); row.className='row '+who;
+      const b = document.createElement('div'); b.className='bubble'; b.textContent = text;
+      row.appendChild(b); chat.appendChild(row);
+      if (sources && sources.length){
+        const meta=document.createElement('div'); meta.className='meta sources';
+        meta.innerHTML = sources.map(s => {
+          const t = [s.titel, s.bwbr && ('('+s.bwbr+')'), s.artikel && ('art. '+s.artikel), s.lid && ('lid '+s.lid)].filter(Boolean).join(' ');
+          return `<a href="${s.bron_url}" target="_blank" rel="noopener">${t}</a>`;
+        }).join(' · ');
+        chat.appendChild(meta);
+      }
+      chat.scrollTop = chat.scrollHeight;
     }
-  } catch(err){ add('Fout: '+err,'bot'); }
-}
-function formatLiveAnswer(q, puc, ob){
-  let out = `Actuele resultaten voor: "${q}"\n\nMP-bundels:\n`;
-  if(puc.items?.length){ out += puc.items.slice(0,5).map((i,ix)=>` ${ix+1}. ${i.titel} — ${i.datum || ''}\n    ${i.url}`).join('\n'); }
-  else out += '   niets gevonden\n';
-  out += `\nOfficiële bekendmakingen:\n`;
-  if(ob.items?.length){ out += ob.items.slice(0,5).map((i,ix)=>` ${ix+1}. ${i.title} — ${i.date || ''}\n    ${i.link}`).join('\n'); }
-  else out += '   niets gevonden';
-  return out;
-}
-</script>
-</body></html>
+
+    function setBusy(b){ btn.disabled=b; btn.textContent = b ? 'Even geduld…' : 'Verstuur'; }
+
+    async function send(e){
+      e.preventDefault();
+      const q = qEl.value.trim(); if(!q) return;
+      addBubble(q,'me'); qEl.value=''; setBusy(true);
+      try {
+        const res = await fetch('/ask', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ question: q, top_k: 5 })
+        });
+        if(!res.ok){
+          const txt = await res.text();
+          addBubble(`Fout ${res.status}: ${txt}`,'bot'); setBusy(false); return;
+        }
+        const data = await res.json();
+        addBubble(data.answer || '(geen antwoord ontvangen)','bot', data.sources || []);
+      } catch(err){
+        addBubble('Fout: '+(err.message||err),'bot');
+      } finally { setBusy(false); }
+    }
+
+    // Send on Enter
+    qEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('btn').click(); }});
+  </script>
+</body>
+</html>
