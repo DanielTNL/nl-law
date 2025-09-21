@@ -39,8 +39,12 @@ class AskIn(BaseModel):
 
 @app.post("/ask")
 async def ask(body: AskIn):
-    hits = await semantic_search(body.question, top_k=body.top_k)
-    if not hits:
-        return {"answer": "Geen relevante bepalingen gevonden.", "sources": []}
-    ans = await answer(body.question, hits)
-    return {"answer": ans, "sources": hits}
+    try:
+        hits = await semantic_search(body.question, top_k=body.top_k)
+        if not hits:
+            return {"answer":"Geen relevante bepalingen gevonden.","sources":[]}
+        ans = await answer(body.question, hits)
+        return {"answer": ans, "sources": hits}
+    except Exception as e:
+        import traceback; traceback.print_exc()  # shows full stack in the uvicorn console
+        return {"answer": f"Er ging iets mis: {type(e).__name__}: {e}", "sources":[]}
