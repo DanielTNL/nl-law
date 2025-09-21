@@ -3,6 +3,7 @@ from typing import List, Dict
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from app.settings import QDRANT_URL, QDRANT_API_KEY, OPENAI_API_KEY, COLLECTION, EMBED_MODEL
+from uuid import uuid4
 
 client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
